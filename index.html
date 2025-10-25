@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>三角洲行动随机装备系统</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  
+  <!-- 配置Tailwind自定义主题 -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#1a365d',
+            secondary: '#2d3748',
+            accent: '#fc814a',
+            dark: '#17202a',
+            light: '#f8fafc',
+            neon: '#00f7ff'
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            military: ['"Rajdhani"', 'sans-serif']
+          },
+          animation: {
+            'pulse-strong': 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'spin-slow': 'spin 3s linear infinite',
+            'float': 'float 3s ease-in-out infinite'
+          },
+          keyframes: {
+            float: {
+              '0%, 100%': { transform: 'translateY(0)' },
+              '50%': { transform: 'translateY(-10px)' }
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .content-auto {
+        content-visibility: auto;
+      }
+      .text-shadow {
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+      }
+      .text-shadow-neon {
+        text-shadow: 0 0 10px rgba(0, 247, 255, 0.7), 0 0 20px rgba(0, 247, 255, 0.5);
+      }
+      .card-hover {
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      }
+      .card-hover:hover {
+        transform: translateY(-8px) scale(1.02);
+        box-shadow: 0 15px 30px -8px rgba(0, 0, 0, 0.4);
+      }
+      .btn-pulse {
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+      }
+      .btn-pulse:hover:not(:disabled) {
+        transform: scale(1.05);
+        box-shadow: 0 0 15px rgba(252, 129, 74, 0.6);
+      }
+      .btn-pulse:active:not(:disabled) {
+        transform: scale(0.98);
+      }
+      .btn-pulse::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        transition: width 0.6s ease, height 0.6s ease;
+      }
+      .btn-pulse:active:not(:disabled)::after {
+        width: 300px;
+        height: 300px;
+        opacity: 0;
+      }
+      .image-transition {
+        transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        transform-origin: center;
+      }
+      .image-container {
+        position: relative;
+        overflow: hidden;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .image-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+        transition: 0.7s;
+      }
+      .image-container:hover::before {
+        left: 100%;
+      }
+      .placeholder-content {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        width: 100%;
+        transition: all 0.5s ease;
+      }
+      .scaled-image {
+        max-width: 80%;
+        max-height: 80%;
+        object-fit: contain;
+      }
+      .border-glow {
+        box-shadow: 0 0 5px rgba(0, 247, 255, 0.5), 0 0 10px rgba(0, 247, 255, 0.3);
+      }
+      .cooldown-overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.7);
+        border-radius: inherit;
+        z-index: 10;
+      }
+      .modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
+      }
+      .modal.active {
+        opacity: 1;
+        visibility: visible;
+      }
+      .modal-content {
+        background: #1a202c;
+        padding: 2rem;
+        border-radius: 0.5rem;
+        width: 90%;
+        max-width: 600px;
+        max-height: 80vh;
+        overflow-y: auto;
+        border: 2px solid #00f7ff;
+        box-shadow: 0 0 15px rgba(0, 247, 255, 0.5);
+      }
+      .modal-content h3 {
+        border-bottom: 1px solid #00f7ff;
+        padding-bottom: 0.5rem;
+        margin-bottom: 1rem;
+      }
+      .modal-content p {
+        margin-bottom: 1rem;
+        line-height: 1.6;
+      }
+      .modal-content ul {
+        margin-bottom: 1rem;
+        padding-left: 1.5rem;
+      }
+      .modal-content li {
+        margin-bottom: 0.5rem;
+        line-height: 1.6;
+      }
+      .mode-btn {
+        transition: all 0.3s ease;
+      }
+      .mode-btn.active {
+        background-color: #00f7ff;
+        color: #17202a;
+        box-shadow: 0 0 10px rgba(0, 247, 255, 0.7);
+      }
+    }
+  </style>
+  
+  <!-- 引入军事风格字体 -->
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-dark min-h-screen flex flex-col items-center justify-center p-4 font-sans text-light">
+  <!-- 标题区域 -->
+  <div class="text-center mb-4 md:mb-6 animate-float w-full max-w-6xl">
+    <h1 class="font-military text-[clamp(1.8rem,5vw,3.2rem)] font-bold text-neon text-shadow-neon tracking-wider">
+      三角洲行动随机装备系统
+    </h1>
+    <div class="w-48 h-1 bg-accent mx-auto mt-2 rounded-full border-glow mb-3"></div>
+    
+    <!-- 功能按钮区域 -->
+    <div class="flex flex-wrap justify-end gap-2">
+      <!-- 模式选择按钮组 -->
+      <div class="flex gap-1 mr-2">
+        <button onclick="setMode('random')" class="mode-btn bg-primary hover:bg-primary/80 text-light font-bold py-2 px-3 rounded-md transition-all text-sm" id="randomMode">
+          随机
+        </button>
+        <button onclick="setMode('balanced')" class="mode-btn bg-primary hover:bg-primary/80 text-light font-bold py-2 px-3 rounded-md transition-all text-sm active" id="balancedMode">
+          均衡
+        </button>
+        <button onclick="setMode('aggressive')" class="mode-btn bg-primary hover:bg-primary/80 text-light font-bold py-2 px-3 rounded-md transition-all text-sm" id="aggressiveMode">
+          猛攻
+        </button>
+      </div>
+      
+      <!-- 原有功能按钮 -->
+      <button onclick="showRulesModal()" class="bg-primary hover:bg-primary/80 text-neon font-bold py-2 px-4 rounded-md btn-pulse transition-all flex items-center">
+        <i class="fa fa-book mr-2"></i> 规则
+      </button>
+      <button onclick="showAdminModal()" class="bg-primary hover:bg-primary/80 text-neon font-bold py-2 px-4 rounded-md btn-pulse transition-all flex items-center">
+        <i class="fa fa-key mr-2"></i> 重置冷却
+      </button>
+    </div>
+  </div>
+
+  <!-- 规则说明模态框 -->
+  <div id="rulesModal" class="modal">
+    <div class="modal-content">
+      <h3 class="text-xl font-military text-neon mb-4">系统功能说明</h3>
+      
+      <h4 class="text-lg text-accent mb-2">1. 基本功能</h4>
+      <p>本系统用于随机生成三角洲行动游戏中的装备，包括三类装备：</p>
+      <ul>
+        <li><strong>头盔</strong>：系统包含25种不同的头盔可供随机生成</li>
+        <li><strong>护甲</strong>：系统包含25种不同的护甲可供随机生成</li>
+        <li><strong>枪械</strong>：系统包含59种不同的枪械可供随机生成</li>
+      </ul>
+      
+      <h4 class="text-lg text-accent mb-2">2. 装备模式说明</h4>
+      <ul>
+        <li><strong>随机模式</strong>：所有装备完全随机出现，没有概率偏向</li>
+        <li><strong>均衡模式</strong>：中间区间装备（10-20）有更高概率出现</li>
+        <li><strong>猛攻模式</strong>：高区间装备（15-25）有更高概率出现</li>
+      </ul>
+      
+      <h4 class="text-lg text-accent mb-2">3. 操作限制</h4>
+      <ul>
+        <li>每个装备类型的独立刷新按钮每小时可使用3次</li>
+        <li>"随机生成全部装备"按钮每次使用后有30秒冷却时间</li>
+      </ul>
+      
+      <div class="mt-4 text-center">
+        <button onclick="hideRulesModal()" class="bg-accent hover:bg-accent/90 text-dark font-bold py-2 px-6 rounded-md transition-all">
+          关闭
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 管理员密码模态框 -->
+  <div id="adminModal" class="modal">
+    <div class="modal-content">
+      <h3 class="text-xl font-military text-neon mb-4 text-center">输入管理员密码</h3>
+      <input type="password" id="adminPassword" placeholder="请输入密码" class="w-full bg-secondary border border-gray-600 rounded-md px-3 py-2 mb-4 text-light focus:outline-none focus:border-neon">
+      <div class="flex gap-2">
+        <button onclick="verifyPassword()" class="flex-1 bg-accent hover:bg-accent/90 text-dark font-bold py-2 px-4 rounded-md transition-all">
+          确认
+        </button>
+        <button onclick="hideAdminModal()" class="flex-1 bg-secondary hover:bg-secondary/80 text-light font-bold py-2 px-4 rounded-md transition-all">
+          取消
+        </button>
+      </div>
+      <p id="passwordError" class="text-red-500 text-sm mt-2 text-center hidden">密码错误，请重试</p>
+    </div>
+  </div>
+
+  <!-- 主容器 - 16:10比例 -->
+  <div class="relative w-full max-w-6xl aspect-[16/10] overflow-hidden rounded-lg shadow-2xl border-2 border-gray-700">
+    <!-- 背景图 -->
+    <div class="absolute inset-0 z-0">
+      <img src="beijing_01.png" alt="背景图" class="w-full h-full object-cover opacity-90">
+      <!-- 半透明遮罩增强文字可读性 -->
+      <div class="absolute inset-0 bg-gradient-to-b from-black/40 via-black/30 to-black/50"></div>
+    </div>
+    
+    <!-- 内容区域 -->
+    <div class="relative z-10 h-full flex flex-col p-6 md:p-10">      
+      <!-- 装备展示区 -->
+      <div class="flex-1 flex flex-col md:flex-row gap-6 justify-center items-center mb-4">
+        <!-- 头盔（1-25） -->
+        <div class="w-full md:w-1/3 flex flex-col items-center card-hover bg-dark/60 backdrop-blur-sm rounded-lg p-4 border border-gray-700/50">
+          <h2 class="font-military text-xl md:text-2xl font-semibold mb-3 text-accent flex items-center">
+            <i class="fa fa-shield mr-2"></i>头盔
+          </h2>
+          <div class="w-full aspect-[16/10] bg-secondary/80 rounded-md overflow-hidden mb-4 border border-gray-600">
+            <div class="image-container">
+              <img id="helmetImage" src="" alt="头盔图片" class="scaled-image image-transition opacity-0">
+              <div id="helmetPlaceholder" class="placeholder-content">
+                <i class="fa fa-helmet-battle text-4xl mb-2 text-gray-400"></i>
+                <p class="text-gray-400 max-w-[80%] mx-auto">点击下方按钮获取随机装备</p>
+              </div>
+            </div>
+          </div>
+          <!-- 头盔独立刷新按钮 -->
+          <button onclick="randomizeSingle('helmet', 25)" 
+                  class="w-full bg-primary hover:bg-primary/90 text-light font-bold py-2 px-4 rounded-md btn-pulse transition-all flex items-center justify-center relative"
+                  id="helmetBtn">
+            <i class="fa fa-refresh mr-2"></i> 刷新头盔
+            <span class="ml-2 text-xs bg-accent text-dark px-2 py-0.5 rounded" id="helmetCount">3次</span>
+          </button>
+        </div>
+        
+        <!-- 护甲（1-25） -->
+        <div class="w-full md:w-1/3 flex flex-col items-center card-hover bg-dark/60 backdrop-blur-sm rounded-lg p-4 border border-gray-700/50">
+          <h2 class="font-military text-xl md:text-2xl font-semibold mb-3 text-accent flex items-center">
+            <i class="fa fa-user-shield mr-2"></i>护甲
+          </h2>
+          <div class="w-full aspect-[16/10] bg-secondary/80 rounded-md overflow-hidden mb-4 border border-gray-600">
+            <div class="image-container">
+              <img id="armorImage" src="" alt="护甲图片" class="scaled-image image-transition opacity-0">
+              <div id="armorPlaceholder" class="placeholder-content">
+                <i class="fa fa-shield-alt text-4xl mb-2 text-gray-400"></i>
+                <p class="text-gray-400 max-w-[80%] mx-auto">点击下方按钮获取随机装备</p>
+              </div>
+            </div>
+          </div>
+          <!-- 护甲独立刷新按钮 -->
+          <button onclick="randomizeSingle('armor', 25)" 
+                  class="w-full bg-primary hover:bg-primary/90 text-light font-bold py-2 px-4 rounded-md btn-pulse transition-all flex items-center justify-center relative"
+                  id="armorBtn">
+            <i class="fa fa-refresh mr-2"></i> 刷新护甲
+            <span class="ml-2 text-xs bg-accent text-dark px-2 py-0.5 rounded" id="armorCount">3次</span>
+          </button>
+        </div>
+        
+        <!-- 枪械（1-59） -->
+        <div class="w-full md:w-1/3 flex flex-col items-center card-hover bg-dark/60 backdrop-blur-sm rounded-lg p-4 border border-gray-700/50">
+          <h2 class="font-military text-xl md:text-2xl font-semibold mb-3 text-accent flex items-center">
+            <i class="fa fa-crosshairs mr-2"></i>枪械
+          </h2>
+          <div class="w-full aspect-[16/10] bg-secondary/80 rounded-md overflow-hidden mb-4 border border-gray-600">
+            <div class="image-container">
+              <img id="gunImage" src="" alt="枪械图片" class="scaled-image image-transition opacity-0">
+              <div id="gunPlaceholder" class="placeholder-content">
+                <i class="fa fa-firearms text-4xl mb-2 text-gray-400"></i>
+                <p class="text-gray-400 max-w-[80%] mx-auto">点击下方按钮获取随机装备</p>
+              </div>
+            </div>
+          </div>
+          <!-- 枪械独立刷新按钮 -->
+          <button onclick="randomizeSingle('gun', 59)" 
+                  class="w-full bg-primary hover:bg-primary/90 text-light font-bold py-2 px-4 rounded-md btn-pulse transition-all flex items-center justify-center relative"
+                  id="gunBtn">
+            <i class="fa fa-refresh mr-2"></i> 刷新枪械
+            <span class="ml-2 text-xs bg-accent text-dark px-2 py-0.5 rounded" id="gunCount">3次</span>
+          </button>
+        </div>
+      </div>
+      
+      <!-- 统一按钮 -->
+      <div class="flex justify-center mt-auto">
+        <button onclick="randomizeAll()" 
+                class="bg-accent hover:bg-accent/90 text-dark font-bold py-3 px-10 text-lg rounded-md btn-pulse transition-all flex items-center relative"
+                id="allBtn">
+          <i class="fa fa-random mr-2"></i> 随机生成全部装备
+          <span class="ml-2 text-sm bg-dark text-light px-2 py-0.5 rounded" id="allCooldown">30s</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 当前模式：random（纯随机）、balanced（均衡10-20）、aggressive（猛攻15-25）
+    let currentMode = 'balanced';
+    
+    // 初始化本地存储的冷却和次数数据
+    function initStorage() {
+      const now = Date.now();
+      
+      // 初始化独立按钮数据（每小时3次）
+      ['helmet', 'armor', 'gun'].forEach(type => {
+        const storedData = localStorage.getItem(`cooldown_${type}`);
+        
+        if (!storedData) {
+          const initialData = {
+            count: 3,
+            resetTime: now + 3600000 // 1小时后重置
+          };
+          localStorage.setItem(`cooldown_${type}`, JSON.stringify(initialData));
+        } else {
+          const data = JSON.parse(storedData);
+          if (now > data.resetTime) {
+            data.count = 3;
+            data.resetTime = now + 3600000;
+            localStorage.setItem(`cooldown_${type}`, JSON.stringify(data));
+          }
+        }
+      });
+      
+      // 初始化全装备按钮数据（30秒冷却）
+      if (!localStorage.getItem('allLastUsed')) {
+        localStorage.setItem('allLastUsed', 0);
+      }
+      
+      updateButtonStates();
+    }
+    
+    // 更新所有按钮状态
+    function updateButtonStates() {
+      const now = Date.now();
+      
+      // 更新独立按钮状态
+      ['helmet', 'armor', 'gun'].forEach(type => {
+        const storedData = localStorage.getItem(`cooldown_${type}`);
+        const data = storedData ? JSON.parse(storedData) : {count: 3, resetTime: now + 3600000};
+        const btn = document.getElementById(`${type}Btn`);
+        const countEl = document.getElementById(`${type}Count`);
+        
+        const remainingTime = data.resetTime - now;
+        countEl.textContent = `${data.count}次`;
+        
+        if (data.count <= 0 && remainingTime > 0) {
+          btn.disabled = true;
+          
+          let overlay = btn.querySelector('.cooldown-overlay');
+          if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.className = 'cooldown-overlay';
+            btn.appendChild(overlay);
+          }
+          
+          const minutes = Math.floor(remainingTime / 60000);
+          const seconds = Math.floor((remainingTime % 60000) / 1000);
+          overlay.innerHTML = `<span>冷却中 ${minutes}:${seconds.toString().padStart(2, '0')}</span>`;
+        } else {
+          btn.disabled = false;
+          const overlay = btn.querySelector('.cooldown-overlay');
+          if (overlay) overlay.remove();
+        }
+      });
+      
+      // 更新全装备按钮状态
+      const allLastUsed = parseInt(localStorage.getItem('allLastUsed')) || 0;
+      const allBtn = document.getElementById('allBtn');
+      const allCooldownEl = document.getElementById('allCooldown');
+      
+      if (now - allLastUsed < 30000) { // 30秒内
+        const remaining = Math.ceil((30000 - (now - allLastUsed)) / 1000);
+        allBtn.disabled = true;
+        allCooldownEl.textContent = `${remaining}s`;
+        
+        let overlay = allBtn.querySelector('.cooldown-overlay');
+        if (!overlay) {
+          overlay = document.createElement('div');
+          overlay.className = 'cooldown-overlay';
+          allBtn.appendChild(overlay);
+        }
+        overlay.innerHTML = `<span>冷却中 ${remaining}s</span>`;
+      } else {
+        allBtn.disabled = false;
+        allCooldownEl.textContent = '30s';
+        const overlay = allBtn.querySelector('.cooldown-overlay');
+        if (overlay) overlay.remove();
+      }
+    }
+    
+    // 定时更新按钮状态（每秒更新一次）
+    setInterval(updateButtonStates, 1000);
+    
+    // 设置装备模式
+    function setMode(mode) {
+      currentMode = mode;
+      
+      document.getElementById('randomMode').classList.remove('active');
+      document.getElementById('balancedMode').classList.remove('active');
+      document.getElementById('aggressiveMode').classList.remove('active');
+      document.getElementById(`${mode}Mode`).classList.add('active');
+      
+      let modeName = '';
+      switch(mode) {
+        case 'random': modeName = '纯随机模式'; break;
+        case 'balanced': modeName = '均衡模式'; break;
+        case 'aggressive': modeName = '猛攻模式'; break;
+      }
+      alert(`已切换到${modeName}`);
+    }
+    
+    // 规则模态框控制
+    function showRulesModal() {
+      document.getElementById('rulesModal').classList.add('active');
+    }
+    
+    function hideRulesModal() {
+      document.getElementById('rulesModal').classList.remove('active');
+    }
+    
+    // 管理员密码模态框控制
+    function showAdminModal() {
+      document.getElementById('adminModal').classList.add('active');
+      document.getElementById('adminPassword').value = '';
+      document.getElementById('passwordError').classList.add('hidden');
+    }
+    
+    function hideAdminModal() {
+      document.getElementById('adminModal').classList.remove('active');
+    }
+    
+    // 验证密码并重置倒计时
+    function verifyPassword() {
+      const password = document.getElementById('adminPassword').value;
+      const errorEl = document.getElementById('passwordError');
+      
+      if (password === 'admin') {
+        const now = Date.now();
+        
+        ['helmet', 'armor', 'gun'].forEach(type => {
+          const resetData = {
+            count: 3,
+            resetTime: now + 3600000
+          };
+          localStorage.setItem(`cooldown_${type}`, JSON.stringify(resetData));
+        });
+        
+        localStorage.setItem('allLastUsed', 0);
+        updateButtonStates();
+        hideAdminModal();
+        alert('所有倒计时已重置');
+      } else {
+        errorEl.classList.remove('hidden');
+        document.getElementById('adminPassword').focus();
+      }
+    }
+    
+    // 图片前缀映射
+    const imagePrefixes = {
+      helmet: 'toukiu (',
+      armor: 'huajia (',
+      gun: 'qiangxie ('
+    };
+    
+    // 生成带权重的随机头盔（根据当前模式调整）
+    function getWeightedHelmet(armorNum) {
+      const totalHelmets = 25;
+      
+      if (currentMode === 'random') {
+        return Math.floor(Math.random() * totalHelmets) + 1;
+      }
+      
+      const weights = [];
+      
+      for (let i = 1; i <= totalHelmets; i++) {
+        const distance = Math.abs(i - armorNum);
+        let weight = distance === 0 ? 5 : 
+                     distance === 1 ? 4 : 
+                     distance === 2 ? 3 : 
+                     distance === 3 ? 2 : 1;
+                     
+        if (currentMode === 'balanced' && i >= 10 && i <= 20) {
+          weight += 2;
+        } else if (currentMode === 'aggressive' && i >= 15 && i <= 25) {
+          weight += 3;
+        }
+        
+        weights.push({num: i, weight: weight});
+      }
+      
+      let totalWeight = weights.reduce((sum, item) => sum + item.weight, 0);
+      let random = Math.random() * totalWeight;
+      let cumulative = 0;
+      
+      for (let item of weights) {
+        cumulative += item.weight;
+        if (random < cumulative) {
+          return item.num;
+        }
+      }
+      
+      return Math.floor(Math.random() * totalHelmets) + 1;
+    }
+    
+    // 生成带权重的随机护甲（根据当前模式调整）
+    function getWeightedArmor() {
+      const totalArmors = 25;
+      
+      if (currentMode === 'random') {
+        return Math.floor(Math.random() * totalArmors) + 1;
+      }
+      
+      const weights = [];
+      
+      for (let i = 1; i <= totalArmors; i++) {
+        let weight = 3;
+        
+        if (currentMode === 'balanced' && i >= 10 && i <= 20) {
+          weight += 2;
+        } else if (currentMode === 'aggressive' && i >= 15 && i <= 25) {
+          weight += 3;
+        }
+        
+        weights.push({num: i, weight: weight});
+      }
+      
+      let totalWeight = weights.reduce((sum, item) => sum + item.weight, 0);
+      let random = Math.random() * totalWeight;
+      let cumulative = 0;
+      
+      for (let item of weights) {
+        cumulative += item.weight;
+        if (random < cumulative) {
+          return item.num;
+        }
+      }
+      
+      return Math.floor(Math.random() * totalArmors) + 1;
+    }
+    
+    // 生成带权重的随机枪械（根据当前模式调整）
+    function getWeightedGun() {
+      const totalGuns = 59;
+      
+      if (currentMode === 'random') {
+        return Math.floor(Math.random() * totalGuns) + 1;
+      }
+      
+      const weights = [];
+      
+      for (let i = 1; i <= totalGuns; i++) {
+        let weight = 3;
+        
+        if (currentMode === 'balanced' && i >= 20 && i <= 40) {
+          weight += 2;
+        } else if (currentMode === 'aggressive' && i >= 30 && i <= 59) {
+          weight += 3;
+        }
+        
+        weights.push({num: i, weight: weight});
+      }
+      
+      let totalWeight = weights.reduce((sum, item) => sum + item.weight, 0);
+      let random = Math.random() * totalWeight;
+      let cumulative = 0;
+      
+      for (let item of weights) {
+        cumulative += item.weight;
+        if (random < cumulative) {
+          return item.num;
+        }
+      }
+      
+      return Math.floor(Math.random() * totalGuns) + 1;
+    }
+    
+    // 单个类型随机生成图片
+    function randomizeImage(type, maxImages, relatedNum = null) {
+      const imgElement = document.getElementById(`${type}Image`);
+      const placeholder = document.getElementById(`${type}Placeholder`);
+      const container = imgElement.closest('.image-container');
+      
+      let randomNum;
+      
+      if (type === 'helmet' && relatedNum !== null) {
+        randomNum = getWeightedHelmet(relatedNum);
+      } else if (type === 'armor') {
+        randomNum = getWeightedArmor();
+      } else if (type === 'gun') {
+        randomNum = getWeightedGun();
+      } else {
+        randomNum = Math.floor(Math.random() * maxImages) + 1;
+      }
+      
+      const imagePath = `${imagePrefixes[type]}${randomNum}).png`;
+      
+      imgElement.style.opacity = '0';
+      imgElement.style.transform = 'scale(0.5) rotate(-10deg)';
+      
+      placeholder.style.display = 'block';
+      placeholder.querySelector('i').classList.add('animate-spin-slow');
+      
+      imgElement.onload = function() {
+        placeholder.querySelector('i').classList.remove('animate-spin-slow');
+        placeholder.style.display = 'none';
+        
+        container.parentElement.classList.add('border-glow');
+        setTimeout(() => container.parentElement.classList.remove('border-glow'), 1000);
+        
+        setTimeout(() => {
+          imgElement.style.opacity = '1';
+          imgElement.style.transform = 'scale(1) rotate(0)';
+        }, 100);
+      };
+      
+      imgElement.onerror = function() {
+        alert(`图片加载失败，请检查是否存在该文件：${imagePath}`);
+        placeholder.querySelector('i').classList.remove('animate-spin-slow');
+        imgElement.style.opacity = '0';
+        placeholder.style.display = 'block';
+      };
+      
+      imgElement.src = imagePath;
+      return randomNum;
+    }
+    
+    // 刷新单个装备
+    function randomizeSingle(type, maxImages) {
+      const now = Date.now();
+      const storedData = localStorage.getItem(`cooldown_${type}`);
+      if (!storedData) return;
+      
+      const data = JSON.parse(storedData);
+      
+      if (data.count <= 0) {
+        return;
+      }
+      
+      data.count -= 1;
+      localStorage.setItem(`cooldown_${type}`, JSON.stringify(data));
+      
+      if (type === 'helmet') {
+        const currentArmorSrc = document.getElementById('armorImage').src;
+        let armorNum = 1;
+        if (currentArmorSrc) {
+          const match = currentArmorSrc.match(/huajia \((\d+)\)/);
+          if (match && match[1]) {
+            armorNum = parseInt(match[1]);
+          }
+        }
+        randomizeImage(type, maxImages, armorNum);
+      } else {
+        randomizeImage(type, maxImages);
+      }
+      
+      updateButtonStates();
+    }
+    
+    // 同时随机生成所有装备
+    function randomizeAll() {
+      const now = Date.now();
+      const lastUsed = parseInt(localStorage.getItem('allLastUsed')) || 0;
+      
+      if (now - lastUsed < 30000) {
+        return;
+      }
+      
+      localStorage.setItem('allLastUsed', now);
+      
+      const armorNum = randomizeImage('armor', 25);
+      
+      setTimeout(() => {
+        randomizeImage('helmet', 25, armorNum);
+      }, 150);
+      
+      setTimeout(() => {
+        randomizeImage('gun', 59);
+      }, 300);
+      
+      updateButtonStates();
+    }
+    
+    // 初始化
+    window.onload = initStorage;
+  </script>
+</body>
+</html>
